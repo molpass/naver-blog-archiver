@@ -15,13 +15,14 @@ _HTML_SE = """
 </div></div>
 """
 
-# outerDL widget: dd wraps the title (no clean author) -> title-only
+# outerDL widget: per-book dd = '제목 | 저자 출판사 날짜 별점' -> byline '저자 출판사'
 _HTML_DL = """
 <div class="post-view"><dl id="outerDL">
   <dt><a href="http://book.naver.com/bookdb/book_detail.php?bid=121273">
     <img src="http://bookimg.naver.com/y.jpg"></a></dt>
-  <dd><h4><a href="http://book.naver.com/bookdb/book_detail.php?bid=121273">
-    <span class="pcol1">당신의 이름은 무엇입니까</span></a></h4></dd>
+  <dd id="id_dd_121273"><a href="http://book.naver.com/bookdb/book_detail.php?bid=121273">
+    <span class="pcol1">당신의 이름은 무엇입니까</span></a>
+    <span>|</span> 신현태 신규출판 <span>2003.03.10</span> <strong>별점</strong></dd>
 </dl></div>
 """
 
@@ -40,8 +41,23 @@ def test_se_widget_title_and_author() -> None:
     assert author == "J.R.R. 톨킨"  # dd first <p>, split before separator, not a date
 
 
-def test_outerdl_widget_title_only() -> None:
+def test_outerdl_byline_drops_date_and_rating() -> None:
     meta = book_meta_from_html(_HTML_DL)
-    title, author = meta["121273"]
+    title, byline = meta["121273"]
     assert title == "당신의 이름은 무엇입니까"
-    assert author is None  # no clean author -> title only (no guessing)
+    assert byline == "신현태 신규출판"  # '|'..date, with date+rating cut
+
+
+# dt-based book (no '|' delimiter): 'title author publisher date' -> strip title + date
+_HTML_DT = """
+<div class="post-view"><dl id="outerDL"><dt>
+  <a href="http://book.naver.com/bookdb/book_detail.php?bid=4302646">
+    <span class="pcol1">통계의 미학</span></a> 정재호 이지아시아 2007.12.03
+</dt></dl></div>
+"""
+
+
+def test_outerdl_byline_no_bar_strips_title_and_date() -> None:
+    title, byline = book_meta_from_html(_HTML_DT)["4302646"]
+    assert title == "통계의 미학"
+    assert byline == "정재호 이지아시아"  # title + date removed, no '|' present

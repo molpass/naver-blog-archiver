@@ -32,6 +32,8 @@ PLACEHOLDER = re.compile(
 )
 _SEP = re.compile(r"\s{2,}|\s*[|·•]\s*")
 _DATEISH = re.compile(r"\d{4}[.\-]\d")
+# full publish date like 2003.03.10 / 2003-3-10 — byline noise to cut (date + trailing rating)
+_DATE_FULL = re.compile(r"\d{4}\s*[.\-]\s*\d{1,2}\s*[.\-]\s*\d{1,2}")
 
 
 def book_meta_from_html(html: str) -> dict[str, tuple[str, str | None]]:
@@ -56,27 +58,47 @@ def book_meta_from_html(html: str) -> dict[str, tuple[str, str | None]]:
             continue
         title = _clean(pcol1.get_text(" ", strip=True))
         if title:
-            out[m.group(1)] = (title, _author_for(anchor))
+            out[m.group(1)] = (title, _author_for(anchor, title))
     return out
 
 
-def _author_for(title_anchor) -> str | None:
-    """Conservative per-book author. Clean only for __se_object (dd first <p>)."""
-    w = title_anchor
-    for _ in range(6):
-        w = w.parent
-        if w is None:
+def _author_for(title_anchor, title: str) -> str | None:
+    """Per-book byline for `📖 제목 — byline`. __se_object uses its dd's first <p> (clean
+    author); every other book-widget shape uses the generic date-unit byline. Routing is by
+    __se_object membership, NOT the outerDL id (books 2..n sit in nested id-less <dl>)."""
+    se = title_anchor.find_parent(class_="__se_object")
+    if se is not None:
+        dd = se.find("dd")
+        p = dd.find("p") if dd else None
+        if p is None:
             return None
-        if "__se_object" in (w.get("class") or []):
-            dd = w.find("dd")
-            p = dd.find("p") if dd else None
-            if p is None:
-                return None
-            cand = _SEP.split(_clean(p.get_text(" ", strip=True)))[0].strip()
-            return cand if cand and not _DATEISH.search(cand) and 1 <= len(cand) <= 30 else None
-        if w.get("id") == "outerDL":
-            return None  # flat multi-book; author/publisher not separable -> title only
-    return None
+        cand = _SEP.split(_clean(p.get_text(" ", strip=True)))[0].strip()
+        return cand if cand and not _DATEISH.search(cand) and 1 <= len(cand) <= 30 else None
+    return _outerdl_byline(title_anchor, title)
+
+
+def _outerdl_byline(title_anchor, title: str) -> str | None:
+    """Per-book unit = smallest ancestor whose text holds a full date. From its text, drop the
+    date (+trailing rating); then take the part after '|' if delimited, else strip the title.
+    Handles both shapes: 'title | author publisher date' and 'title author publisher date'."""
+    unit = None
+    node = title_anchor
+    for _ in range(6):
+        node = node.parent
+        if node is None:
+            break
+        if _DATE_FULL.search(node.get_text(" ", strip=True)):
+            unit = node
+            break
+    if unit is None:
+        return None
+    text = _clean(unit.get_text(" ", strip=True))
+    m = _DATE_FULL.search(text)
+    if m:
+        text = text[: m.start()]
+    byline = text.rsplit("|", 1)[1] if "|" in text else text.replace(title, "", 1)
+    byline = re.sub(r"\s+", " ", byline).strip(" .|·•")
+    return byline if 2 <= len(byline) <= 40 else None
 
 
 @dataclass
