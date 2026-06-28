@@ -43,9 +43,11 @@ only** — pull code on both machines, carry data on USB. No conflicts (code/dat
 
 ## Credits
 
-Naver SmartEditor → Markdown parsing builds on the approach of
-[`betarixm/naver-blog.md`](https://github.com/betarixm/naver-blog.md) (see PROJECT.md for the
-dependency decision).
+Clean-room implementation — **no third-party code is reused**. Understanding of Naver's
+SmartEditor `se-` DOM structure and public API response shapes was informed by the prior work
+of [`betarixm/naver-blog.md`](https://github.com/betarixm/naver-blog.md) and
+[`hyungyunlim`](https://github.com/hyungyunlim); their code is referenced for structure only,
+not copied. This project is independently written and MIT-licensed.
 
 ## License
 

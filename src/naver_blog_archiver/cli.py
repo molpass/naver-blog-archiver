@@ -61,7 +61,24 @@ def main(argv: list[str] | None = None) -> int:
               "(optional, S5)")
         return 0
 
-    if args.command in ("index", "fetch", "build"):
+    if args.command == "index":
+        from .index import collect_index, verification_report, write_index
+        if cfg.blog_id in ("", "YOUR_BLOG_ID"):
+            print("Set blog_id in config.toml first (copy config.example.toml).")
+            return 2
+        print(f"indexing blog '{cfg.blog_id}' (categoryNo=0 sweep, delay {cfg.crawl.delay_seconds}s)…")
+
+        def _progress(page, pages, collected):
+            print(f"  page {page}/{pages}  collected {collected}", flush=True)
+
+        result = collect_index(cfg, on_page=_progress)
+        index_path, report_path = write_index(cfg, result)
+        print()
+        print(verification_report(result))
+        print(f"\nindex  -> {index_path}\nreport -> {report_path}")
+        return 0
+
+    if args.command in ("fetch", "build"):
         print(f"`{args.command}` is not implemented yet — scheduled for a later slice (see PROJECT.md).")
         return 2
 
