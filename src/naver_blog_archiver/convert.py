@@ -185,7 +185,14 @@ def convert_html(post_html: str) -> Converted:
     images: list[ImageRef] = []
     if era == "se":
         return convert_se(soup.select_one(".se-main-container"), images)
-    area = soup.select_one("div.post-view") or soup.select_one("#postViewArea")
+    # Legacy area, in order of specificity. `.se_doc_viewer` is the SmartEditor 2.0 variant
+    # (id=post-view{logNo} but without the `post-view` class), seen on a few mid-era posts.
+    area = (
+        soup.select_one("div.post-view")
+        or soup.select_one(".se_doc_viewer")
+        or soup.select_one("#postViewArea")
+        or soup.select_one('div[id^="post-view"]')
+    )
     if area is None:
         return Converted("unknown", "<!-- no recognizable body container -->\n", [], [], ["no-body"])
     return convert_legacy(area, images)

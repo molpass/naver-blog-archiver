@@ -66,6 +66,15 @@ def test_unknown_body_is_graceful() -> None:
     assert "no recognizable body" in c.markdown
 
 
+def test_se_doc_viewer_variant_is_recognized() -> None:
+    # SmartEditor 2.0 variant: id=post-view{n}, class se_doc_viewer (no .post-view class)
+    html = ('<div id="post-view123" class="se_doc_viewer">'
+            '<p>SE2 본문 문단입니다</p></div>')
+    c = convert_html(html)
+    assert c.era == "legacy"
+    assert "SE2 본문 문단입니다" in c.markdown
+
+
 def test_summary_fold_detection_and_cdata() -> None:
     from naver_blog_archiver.naver_api import _SUMMARY_CDATA, has_summary_fold
     assert has_summary_fold("<a class='con_link _getSummaryContent _param(1|x)'>더보기</a>")
