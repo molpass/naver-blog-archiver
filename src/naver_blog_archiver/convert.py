@@ -38,6 +38,21 @@ def _clean(text: str) -> str:
     return html.unescape(text).replace("\xa0", " ").strip()
 
 
+# Legacy posts split text + its trailing punctuation across separate <span> tags. Joining
+# with no separator (get_text("")) preserves real spaces without inventing boundary spaces;
+# the tidy pass then fixes the rare glued sentence boundary. Conservative — no over-correction.
+_SPACE_BEFORE_PUNCT = re.compile(r"[ \t]+([.,!?)\]}…»”’])")
+_SPACE_AFTER_SENTENCE = re.compile(r"([.,!?])([가-힣])")  # only before Hangul (not 1.08, Mr.Kim)
+_MULTI_SPACE = re.compile(r"[ \t]{2,}")
+
+
+def tidy_text(s: str) -> str:
+    s = _SPACE_BEFORE_PUNCT.sub(r"\1", s)
+    s = _SPACE_AFTER_SENTENCE.sub(r"\1 \2", s)
+    s = _MULTI_SPACE.sub(" ", s)
+    return s.strip()
+
+
 def sanitize_segment(name: str) -> str:
     """Make a category/segment safe as a folder name."""
     s = _clean(name)
@@ -155,7 +170,8 @@ def convert_legacy(area: Tag, images: list[ImageRef]) -> Converted:
         # leaf-ish blocks only (no nested p/div) to avoid double emit
         if block.find(["p", "div"]):
             continue
-        txt = _clean(block.get_text(" ", strip=True))
+        # join with "" (no fake boundary spaces) then tidy the rare glued boundary
+        txt = tidy_text(_clean(block.get_text("", strip=True)))
         if txt:
             out.append(txt)
             out.append("")

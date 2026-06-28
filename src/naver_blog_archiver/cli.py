@@ -33,7 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("index", help="[S1] collect every logNo across all pages (full index JSON)")
     p_conv = sub.add_parser("convert", help="[S2] convert one post -> markdown + local images")
     p_conv.add_argument("log_no", help="the post's logNo (must be in the index)")
-    sub.add_parser("fetch", help="[S3] download posts -> markdown + images")
+    p_fetch = sub.add_parser("fetch", help="[S3] full archive crawl (resumable) -> md + images")
+    p_fetch.add_argument("--limit", type=int, default=None, help="process at most N pending posts")
+    p_fetch.add_argument("--verify-only", action="store_true", help="just print/write the report")
     sub.add_parser("build", help="[S4] export to WordPress (category-preserving)")
     return p
 
@@ -104,7 +106,34 @@ def main(argv: list[str] | None = None) -> int:
         print(f"-> {rep.md_path}")
         return 0
 
-    if args.command in ("fetch", "build"):
+    if args.command == "fetch":
+        from .fetch import run_fetch, verify_archive, write_report
+        if cfg.blog_id in ("", "YOUR_BLOG_ID"):
+            print("Set blog_id in config.toml first.")
+            return 2
+        if not (cfg.index_dir / "index.json").is_file():
+            print("Run `nba index` first (no index.json).")
+            return 2
+        if args.verify_only:
+            print(verify_archive(cfg))
+            write_report(cfg)
+            return 0
+
+        def _prog(i, total, done, failed, log_no):
+            if i % 10 == 0 or i == total:
+                print(f"  {i}/{total}  done={done} failed={failed}  last={log_no}", flush=True)
+
+        print(f"fetch '{cfg.blog_id}' delay={cfg.crawl.delay_seconds}s "
+              f"{'(limit ' + str(args.limit) + ')' if args.limit else '(all)'}…")
+        stats = run_fetch(cfg, limit=args.limit, on_progress=_prog)
+        print(f"\nrun: done={stats['done']} skipped={stats['skipped']} failed={stats['failed']}")
+        report = write_report(cfg)
+        print()
+        print(verify_archive(cfg))
+        print(f"\nreport -> {report}")
+        return 0
+
+    if args.command == "build":
         print(f"`{args.command}` is not implemented yet — scheduled for a later slice (see PROJECT.md).")
         return 2
 
