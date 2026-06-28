@@ -36,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_fetch = sub.add_parser("fetch", help="[S3] full archive crawl (resumable) -> md + images")
     p_fetch.add_argument("--limit", type=int, default=None, help="process at most N pending posts")
     p_fetch.add_argument("--verify-only", action="store_true", help="just print/write the report")
+    p_thumb = sub.add_parser("fixthumbs", help="[S3.5] broken book covers -> '📖 title — author'")
+    p_thumb.add_argument("--dry-run", action="store_true", help="count targets, change nothing")
     sub.add_parser("build", help="[S4] export to WordPress (category-preserving)")
     return p
 
@@ -131,6 +133,19 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print(verify_archive(cfg))
         print(f"\nreport -> {report}")
+        return 0
+
+    if args.command == "fixthumbs":
+        from .thumbfix import run_fixthumbs
+        s = run_fixthumbs(cfg, dry_run=args.dry_run)
+        if args.dry_run:
+            print(f"[dry-run] {s.replaced} broken book covers in {s.posts_touched} posts")
+            return 0
+        print(f"fixthumbs: {s.posts_touched} posts, {s.replaced} replaced "
+              f"({s.with_author} with author, {s.title_only} title-only), "
+              f"{len(s.failed_bids)} title-not-found")
+        if s.failed_bids:
+            print(f"  failed bids: {s.failed_bids[:20]}")
         return 0
 
     if args.command == "build":
