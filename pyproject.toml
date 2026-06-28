@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "naver-blog-archiver"
+version = "0.1.0"
+description = "Archive a public Naver blog (all categories, all pages, with images) to category-preserving markdown."
+readme = "README.md"
+# Aligns with the rest of the stack (MD_AI_Librarian, 아슬) at >=3.11. NOTE: upstream
+# betarixm/naver-blog.md pins ^3.12 — see PROJECT.md / DOC for the dependency decision.
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+nba = "naver_blog_archiver.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

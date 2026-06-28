@@ -1,0 +1,20 @@
+# naver-blog-archiver — config example (copy to config.toml; config.toml is gitignored)
+#
+# Nothing personal lives in the repo. Your blog id and local paths live ONLY in config.toml.
+
+# The public Naver blog id to archive (the part after blog.naver.com/).
+blog_id = "YOUR_BLOG_ID"
+
+# Where the archive is written (gitignored). index/ posts/{category}/ assets/{category}/.
+data_dir = "data"
+
+[crawl]
+# Mannerly crawling (S3): delay between requests + retry/backoff. Meta-only in S0/S1.
+delay_seconds = 1.5
+max_retries = 4
+count_per_page = 30        # naver PostTitleListAsync page size
+
+[deepinfra]
+# OPTIONAL (S5): tags/summary enrichment only. Determinism (crawl/parse/md) needs no key.
+api_key_env = "DEEPINFRA_API_KEY"
+llm_model = "google/gemma-3-27b-it"

@@ -1,0 +1,24 @@
+# --- personal: never commit (public repo, tool only) ---
+# (.gitignore has no inline comments — patterns must stand alone)
+
+# blog id + local paths; commit config.example.toml only
+config.toml
+# research/design notes
+DOC/
+# the archive itself (index, posts, images) — personal corpus
+data/
+.env
+*.env
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
