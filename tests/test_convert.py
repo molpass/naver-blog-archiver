@@ -64,3 +64,21 @@ def test_unknown_body_is_graceful() -> None:
     c = convert_html("<html><body><p>no container</p></body></html>")
     assert c.era == "unknown"
     assert "no recognizable body" in c.markdown
+
+
+def test_summary_fold_detection_and_cdata() -> None:
+    from naver_blog_archiver.naver_api import _SUMMARY_CDATA, has_summary_fold
+    assert has_summary_fold("<a class='con_link _getSummaryContent _param(1|x)'>더보기</a>")
+    assert not has_summary_fold("<div class='post-view'><p>short</p></div>")
+    xml = ("<post><logNo>1</logNo><summaryContent><![CDATA["
+           "<div class='post-view'><P>접힌 전체 본문</P></div>]]></summaryContent></post>")
+    inner = "".join(_SUMMARY_CDATA.findall(xml))
+    assert "접힌 전체 본문" in inner
+
+
+def test_convert_summary_html() -> None:
+    from naver_blog_archiver.convert import convert_summary_html
+    full = "<div class='post-view'><P>접힌 본문 첫 문단</P><P>둘째 문단</P></div>"
+    c = convert_summary_html(full)
+    assert c.era == "legacy-summary"
+    assert "접힌 본문 첫 문단" in c.markdown and "둘째 문단" in c.markdown

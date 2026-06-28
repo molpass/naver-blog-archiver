@@ -12,6 +12,7 @@ shapes) — no third-party source is reused. Two read-only endpoints power S1's 
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import unquote
 
 import httpx
@@ -97,3 +98,32 @@ def download_binary(client: httpx.Client, url: str, blog_id: str) -> bytes:
     r = client.get(url, headers={"User-Agent": _UA_DESKTOP, "Referer": f"{DESKTOP}/{blog_id}"})
     r.raise_for_status()
     return r.content
+
+
+# Older posts truncate the body behind a "더보기" (summary) link whose JS calls
+# /SummaryContentFetch.naver; the full body is returned as legacy HTML inside an XML
+# <summaryContent> CDATA. PostView HTML for such a post carries this marker class.
+SUMMARY_MARKER = "_getSummaryContent"
+_SUMMARY_CDATA = re.compile(
+    r"<summaryContent>\s*<!\[CDATA\[(.*?)\]\]>\s*</summaryContent>", re.DOTALL
+)
+
+
+def has_summary_fold(post_html: str) -> bool:
+    return SUMMARY_MARKER in post_html
+
+
+def fetch_summary_content(client: httpx.Client, blog_id: str, log_no: str) -> str | None:
+    """Fetch the full ("더보기"-expanded) body for a summary post. Returns legacy HTML or None."""
+    r = client.get(
+        f"{DESKTOP}/SummaryContentFetch.naver",
+        params={"blogId": blog_id, "logNo": log_no},
+        headers={
+            "User-Agent": _UA_DESKTOP,
+            "Referer": f"{DESKTOP}/{blog_id}",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+    )
+    r.raise_for_status()
+    parts = _SUMMARY_CDATA.findall(r.text)
+    return "".join(parts) if parts else None

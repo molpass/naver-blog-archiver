@@ -21,7 +21,12 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 
 from .config import Config
-from .naver_api import download_binary, fetch_post_html
+from .naver_api import (
+    download_binary,
+    fetch_post_html,
+    fetch_summary_content,
+    has_summary_fold,
+)
 
 _SUPPORTED_SE = {
     "se-text", "se-sectionTitle", "se-quotation", "se-image", "se-imageGroup",
@@ -170,6 +175,15 @@ def convert_html(post_html: str) -> Converted:
     return convert_legacy(area, images)
 
 
+def convert_summary_html(summary_html: str) -> Converted:
+    """Convert the full body returned by SummaryContentFetch (legacy <P> HTML)."""
+    soup = BeautifulSoup(summary_html, "html.parser")
+    images: list[ImageRef] = []
+    area = soup.select_one("div.post-view") or soup.body or soup
+    conv = convert_legacy(area, images)
+    return Converted("legacy-summary", conv.markdown, conv.images, [], [])
+
+
 # --------------------------------------------------------------------------- #
 # pipeline: fetch -> convert -> download images -> frontmatter -> write        #
 # --------------------------------------------------------------------------- #
@@ -206,7 +220,12 @@ def convert_post(cfg: Config, client: httpx.Client, post: dict) -> ConvertReport
     log_no = post["logNo"]
     cat_path = sanitize_segment_path(post.get("categoryPath", "_"))
     html_text = fetch_post_html(client, cfg.blog_id, log_no)
-    conv = convert_html(html_text)
+    # "더보기" summary post: the PostView body is truncated; fetch the full body separately.
+    if has_summary_fold(html_text):
+        full = fetch_summary_content(client, cfg.blog_id, log_no)
+        conv = convert_summary_html(full) if full else convert_html(html_text)
+    else:
+        conv = convert_html(html_text)
 
     # download images
     assets_dir = cfg.assets_dir / cat_path
