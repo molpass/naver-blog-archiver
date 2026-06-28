@@ -31,6 +31,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("config", help="show resolved config")
     # S1+ surface (stubs in S0).
     sub.add_parser("index", help="[S1] collect every logNo across all pages (full index JSON)")
+    p_conv = sub.add_parser("convert", help="[S2] convert one post -> markdown + local images")
+    p_conv.add_argument("log_no", help="the post's logNo (must be in the index)")
     sub.add_parser("fetch", help="[S3] download posts -> markdown + images")
     sub.add_parser("build", help="[S4] export to WordPress (category-preserving)")
     return p
@@ -76,6 +78,30 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print(verification_report(result))
         print(f"\nindex  -> {index_path}\nreport -> {report_path}")
+        return 0
+
+    if args.command == "convert":
+        import json
+        from .convert import convert_post
+        from .naver_api import make_client
+        index_file = cfg.index_dir / "index.json"
+        if not index_file.is_file():
+            print("Run `nba index` first (no index.json).")
+            return 2
+        posts = {p["logNo"]: p for p in json.loads(index_file.read_text(encoding="utf-8"))["posts"]}
+        post = posts.get(str(args.log_no))
+        if post is None:
+            print(f"logNo {args.log_no} not in index.")
+            return 2
+        client = make_client()
+        try:
+            rep = convert_post(cfg, client, post)
+        finally:
+            client.close()
+        print(f"era={rep.era}  category={rep.category}")
+        print(f"components={rep.components}  unsupported={rep.unsupported}")
+        print(f"images ok={rep.images_ok} fail={rep.images_fail}  md={rep.md_bytes}B")
+        print(f"-> {rep.md_path}")
         return 0
 
     if args.command in ("fetch", "build"):

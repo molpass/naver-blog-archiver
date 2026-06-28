@@ -79,3 +79,21 @@ def fetch_post_page(
 def decode_title(raw_title: str) -> str:
     """Naver returns titles percent-encoded with '+' for spaces."""
     return unquote(raw_title.replace("+", " "))
+
+
+def fetch_post_html(client: httpx.Client, blog_id: str, log_no: str) -> str:
+    """Fetch a single post's PostView HTML (the editable body lives here)."""
+    r = client.get(
+        f"{DESKTOP}/PostView.naver",
+        params={"blogId": blog_id, "logNo": log_no},
+        headers={"User-Agent": _UA_DESKTOP, "Referer": f"{DESKTOP}/{blog_id}"},
+    )
+    r.raise_for_status()
+    return r.text
+
+
+def download_binary(client: httpx.Client, url: str, blog_id: str) -> bytes:
+    """Download an image with a Referer (Naver hotlink protection)."""
+    r = client.get(url, headers={"User-Agent": _UA_DESKTOP, "Referer": f"{DESKTOP}/{blog_id}"})
+    r.raise_for_status()
+    return r.content
